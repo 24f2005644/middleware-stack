@@ -24,11 +24,7 @@ client_requests = {}
 
 allowed_origins = [
     "https://app-iyyyty.example.com",
-
-    # Add the actual exam-page origin here if known.
-    # Examples:
-    # "https://exam.sanand.workers.dev",
-    # "https://tds.s-anand.net",
+    "https://tds.s-anand.net",
 ]
 
 app.add_middleware(
