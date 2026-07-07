@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -9,18 +9,10 @@ app = FastAPI()
 
 EMAIL = "24f2005644@ds.study.iitm.ac.in"
 
-# --------------------------------------------------
-# RATE LIMIT SETTINGS
-# --------------------------------------------------
-
 RATE_LIMIT = 13
 WINDOW = 10
 
 client_requests = {}
-
-# --------------------------------------------------
-# CORS
-# --------------------------------------------------
 
 allowed_origins = [
     "https://app-iyyyty.example.com",
@@ -36,10 +28,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --------------------------------------------------
-# REQUEST CONTEXT MIDDLEWARE
-# --------------------------------------------------
-
 @app.middleware("http")
 async def request_context(request: Request, call_next):
 
@@ -52,35 +40,27 @@ async def request_context(request: Request, call_next):
 
     response = await call_next(request)
 
+    # IMPORTANT
     response.headers["X-Request-ID"] = request_id
 
     return response
 
-# --------------------------------------------------
-# RATE LIMIT MIDDLEWARE
-# --------------------------------------------------
 
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
 
-    # Never rate-limit CORS preflight requests
     if request.method == "OPTIONS":
         return await call_next(request)
 
     client_id = request.headers.get("X-Client-Id")
 
-    # No client ID => no rate limiting
     if not client_id:
         return await call_next(request)
 
     now = time.monotonic()
 
-    if client_id not in client_requests:
-        client_requests[client_id] = []
+    timestamps = client_requests.setdefault(client_id, [])
 
-    timestamps = client_requests[client_id]
-
-    # Keep only requests from last 10 seconds
     timestamps[:] = [
         ts for ts in timestamps
         if now - ts < WINDOW
@@ -90,22 +70,23 @@ async def rate_limit(request: Request, call_next):
         return JSONResponse(
             status_code=429,
             content={"detail": "Rate limit exceeded"},
-            headers={"Retry-After": "10"}
+            headers={
+                "Retry-After": "10"
+            }
         )
 
     timestamps.append(now)
 
     return await call_next(request)
 
-# --------------------------------------------------
-# ENDPOINT
-# --------------------------------------------------
+
+@app.get("/")
+async def root():
+    return {"status": "ok"}
+
 
 @app.get("/ping")
-async def ping(request: Request, response: Response):
-
-    response.headers["X-Request-ID"] = request.state.request_id
-
+async def ping(request: Request):
     return {
         "email": EMAIL,
         "request_id": request.state.request_id
