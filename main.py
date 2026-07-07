@@ -19,12 +19,32 @@ WINDOW = 10
 client_requests = {}
 
 # --------------------------------------------------
+# CORS
+# --------------------------------------------------
+
+allowed_origins = [
+    "https://app-iyyyty.example.com",
+
+    # Add the actual exam-page origin here if known.
+    # Examples:
+    # "https://exam.sanand.workers.dev",
+    # "https://tds.s-anand.net",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --------------------------------------------------
 # REQUEST CONTEXT MIDDLEWARE
 # --------------------------------------------------
 
 @app.middleware("http")
 async def request_context(request: Request, call_next):
-
     request_id = request.headers.get("X-Request-ID")
 
     if not request_id:
@@ -38,13 +58,16 @@ async def request_context(request: Request, call_next):
 
     return response
 
-
 # --------------------------------------------------
 # RATE LIMIT MIDDLEWARE
 # --------------------------------------------------
 
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
+
+    # Never rate-limit CORS preflight requests
+    if request.method == "OPTIONS":
+        return await call_next(request)
 
     client_id = request.headers.get("X-Client-Id", "anonymous")
 
@@ -55,7 +78,6 @@ async def rate_limit(request: Request, call_next):
 
     timestamps = client_requests[client_id]
 
-    # keep only requests within last 10 seconds
     timestamps[:] = [
         ts for ts in timestamps
         if now - ts < WINDOW
@@ -64,39 +86,13 @@ async def rate_limit(request: Request, call_next):
     if len(timestamps) >= RATE_LIMIT:
         return JSONResponse(
             status_code=429,
-            content={
-                "detail": "Rate limit exceeded"
-            },
-            headers={
-                "Retry-After": "10"
-            }
+            content={"detail": "Rate limit exceeded"},
+            headers={"Retry-After": "10"}
         )
 
     timestamps.append(now)
 
     return await call_next(request)
-
-
-# --------------------------------------------------
-# CORS
-# --------------------------------------------------
-
-allowed_origins = [
-    "https://app-iyyyty.example.com",
-
-    # IMPORTANT:
-    # add exam origin if provided in portal
-    # example:
-    # "https://exam.sanand.workers.dev"
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 # --------------------------------------------------
 # ENDPOINT
@@ -104,7 +100,6 @@ app.add_middleware(
 
 @app.get("/ping")
 async def ping(request: Request):
-
     return {
         "email": EMAIL,
         "request_id": request.state.request_id
