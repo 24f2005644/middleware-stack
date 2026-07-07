@@ -25,6 +25,7 @@ client_requests = {}
 allowed_origins = [
     "https://app-iyyyty.example.com",
     "https://tds.s-anand.net",
+    "https://exam.sanand.workers.dev",
 ]
 
 app.add_middleware(
@@ -36,11 +37,27 @@ app.add_middleware(
 )
 
 # --------------------------------------------------
+# DEBUG ORIGIN LOGGER
+# --------------------------------------------------
+
+@app.middleware("http")
+async def log_origin(request: Request, call_next):
+    print(
+        f"METHOD={request.method} "
+        f"ORIGIN={request.headers.get('origin')} "
+        f"CLIENT_ID={request.headers.get('X-Client-Id')}"
+    )
+
+    response = await call_next(request)
+    return response
+
+# --------------------------------------------------
 # REQUEST CONTEXT MIDDLEWARE
 # --------------------------------------------------
 
 @app.middleware("http")
 async def request_context(request: Request, call_next):
+
     request_id = request.headers.get("X-Request-ID")
 
     if not request_id:
@@ -65,7 +82,11 @@ async def rate_limit(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
 
-    client_id = request.headers.get("X-Client-Id", "anonymous")
+    # Only rate-limit when X-Client-Id is provided
+    client_id = request.headers.get("X-Client-Id")
+
+    if not client_id:
+        return await call_next(request)
 
     now = time.time()
 
@@ -96,6 +117,7 @@ async def rate_limit(request: Request, call_next):
 
 @app.get("/ping")
 async def ping(request: Request):
+
     return {
         "email": EMAIL,
         "request_id": request.state.request_id
