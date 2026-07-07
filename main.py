@@ -7,7 +7,7 @@ import time
 
 app = FastAPI()
 
-EMAIL = "your-email@example.com"
+EMAIL = "24f2005644@ds.study.iitm.ac.in"
 
 # --------------------------------------------------
 # RATE LIMIT SETTINGS
