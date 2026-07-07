@@ -14,18 +14,18 @@ WINDOW = 10
 
 client_requests = {}
 
-allowed_origins = [
-    "https://app-iyyyty.example.com",
-    "https://tds.s-anand.net",
-    "https://exam.sanand.workers.dev",
-]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=[
+        "https://app-iyyyty.example.com",
+        "https://tds.s-anand.net",
+        "https://exam.sanand.workers.dev",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
 
 @app.middleware("http")
