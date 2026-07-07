@@ -37,21 +37,6 @@ app.add_middleware(
 )
 
 # --------------------------------------------------
-# DEBUG ORIGIN LOGGER
-# --------------------------------------------------
-
-@app.middleware("http")
-async def log_origin(request: Request, call_next):
-    print(
-        f"METHOD={request.method} "
-        f"ORIGIN={request.headers.get('origin')} "
-        f"CLIENT_ID={request.headers.get('X-Client-Id')}"
-    )
-
-    response = await call_next(request)
-    return response
-
-# --------------------------------------------------
 # REQUEST CONTEXT MIDDLEWARE
 # --------------------------------------------------
 
@@ -82,19 +67,20 @@ async def rate_limit(request: Request, call_next):
     if request.method == "OPTIONS":
         return await call_next(request)
 
-    # Only rate-limit when X-Client-Id is provided
     client_id = request.headers.get("X-Client-Id")
 
+    # No client ID => no rate limiting
     if not client_id:
         return await call_next(request)
 
-    now = time.time()
+    now = time.monotonic()
 
     if client_id not in client_requests:
         client_requests[client_id] = []
 
     timestamps = client_requests[client_id]
 
+    # Keep only requests from last 10 seconds
     timestamps[:] = [
         ts for ts in timestamps
         if now - ts < WINDOW
