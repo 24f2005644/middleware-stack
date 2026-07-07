@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -102,7 +102,9 @@ async def rate_limit(request: Request, call_next):
 # --------------------------------------------------
 
 @app.get("/ping")
-async def ping(request: Request):
+async def ping(request: Request, response: Response):
+
+    response.headers["X-Request-ID"] = request.state.request_id
 
     return {
         "email": EMAIL,
